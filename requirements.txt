@@ -8,6 +8,7 @@ python-multipart>=0.0.5
 # Usage: pip install -r requirements.txt
 
 # Base ------------------------------------------------------------------------
+gitpython
 ipython  # interactive notebook
 matplotlib>=3.2.2
 numpy>=1.18.5
