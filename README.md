@@ -5,8 +5,9 @@
 Serveris ir uzrakstīts, izmantojot Python programmēšanas valodu. Tā pamatā ir [FastAPI](https://fastapi.tiangolo.com/) programmēšanas ietvars (framework), kas vienkāršo REST API izveidi.  Datorredzes risinājums ir [YOLOv5](https://github.com/ultralytics/yolov5) Pytorch modelis, kas tika apmācīts konkrētam nolūkam - mērkoka un kokmateriālu kravas atpazīšanai bildē. 
 
 ## Iedarbināšana ar uvicorn
-Servera darbībai nepieciešama Python 3.8 vide un bibliotēkas, kas ir definētas `requirements.txt` failā. Lai uzinstalētu bibliotēkas, jāpalaiž komanda:
+Servera darbībai nepieciešama Python 3.8 vide un bibliotēkas, kas ir definētas `yolov5` github konta un lokālajā `requirements.txt` failā. Lai uzinstalētu šīs bibliotēkas, jāpalaiž sekojošas komandas:
 ```
+pip install -r https://raw.githubusercontent.com/ultralytics/yolov5/master/requirements.txt
 pip install -r requirements.txt
 ```
 
