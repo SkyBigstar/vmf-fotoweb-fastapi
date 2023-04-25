@@ -12,6 +12,7 @@ app = FastAPI()
 
 model = torch.hub.load('ultralytics/yolov5', 'custom', path='assets/best.onnx')
 
+IMG_SIZE = 1280
 
 class DetectionClass(int, Enum):
     RULER = 0
@@ -41,7 +42,15 @@ class Measurement(BaseModel):
     geometry: Geometries
 
 
-def format_results(results, image_original_size, scale_factor):
+class Detection(BaseModel):
+    score: float
+    x1: float
+    x2: float
+    y1: float
+    y2: float
+
+
+def format_measure_results(results, image_original_size, scale_factor):
     [w, h] = image_original_size
     aspect_ratio = w / h
     max_ruler_confidence = 0
@@ -84,17 +93,43 @@ def format_results(results, image_original_size, scale_factor):
     return None
 
 
-def process_image(img, img_size):
+def format_detect_results(results, image_original_size, scale_factor):
+    [w, h] = image_original_size
+    detections = []
+    for result in results.xyxy:
+        for prediction in result:
+            [x1, y1, x2, y2, detection_score, detection_class] = prediction.tolist()
+            if detection_class == DetectionClass.TIMBER:
+                x1 = x1 / scale_factor / w
+                x2 = x2 / scale_factor / w
+                y1 = y1 / scale_factor / h
+                y2 = y2 / scale_factor / h
+                detections.append(Detection(
+                    score=detection_score,
+                    x1=x1,
+                    x2=x2,
+                    y1=y1,
+                    y2=y2
+                ))
+    return detections
+
+
+def run_model_inference(img):
     image = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     image_original_size = image.size
-    scale_factor = (img_size / max(image.size))
+    scale_factor = (IMG_SIZE / max(image.size))
     resized = image.resize((int(x * scale_factor) for x in image.size), Image.ANTIALIAS)
     results = model(resized)
-    return format_results(results, image_original_size, scale_factor)
+    return results, image_original_size, scale_factor
 
 
 @app.post("/measure", response_model=Optional[Measurement])
 def measure(file: UploadFile = File(...)):
     img = cv2.imdecode(np.fromstring(file.file.read(), np.uint8), cv2.IMREAD_COLOR)
-    result = process_image(img, 1280)
-    return result
+    return format_measure_results(*run_model_inference(img))
+
+
+@app.post("/detect", response_model=List[Detection])
+def detect(file: UploadFile = File(...)):
+    img = cv2.imdecode(np.fromstring(file.file.read(), np.uint8), cv2.IMREAD_COLOR)
+    return format_detect_results(*run_model_inference(img))
