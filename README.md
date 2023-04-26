@@ -30,11 +30,13 @@ docker run -d --name vmf-fotoweb-api -p 8000:80 vmf-fotoweb-api
 ```
 
 ## Pieprasījumu veidi
+
+### Saiņa uzmērīšana: measure
 Mērījumu rezultātu dabūšana tiek nodrošināta ar POST pieprasījumu `/measure`. Pieprasījums sagaida attēlu apstrādei kā `form-data` faila atribūtu ar nosaukumu `file`.
 
 "measure" pieprasījuma piemērs:
 ```
-curl --location --request POST 'http://127.0.0.1:8089/measure' \
+curl --location --request POST 'http://127.0.0.1:8000/measure' \
 --form 'file=@"/path/to/file"'
 ```
 
@@ -74,6 +76,37 @@ curl --location --request POST 'http://127.0.0.1:8089/measure' \
     }
 }
 ```
+Uzmērīšanas pieprasījums sagādās atbildi, tikai ja bildē ir redzams gan sainis, gan mērkoks. Ja kāds no tiem nav redzams, atbilde ir `null`
+
+### Saiņu atpazīšana: detect
+Gadījumos, kad nepieciešams izdabūt tikai saiņu skaitu, jāizmanto POST pieprasījums `/detect`. Pieprasījums sagaida attēlu apstrādei kā `form-data` faila atribūtu ar nosaukumu `file`.
+
+"detect" pieprasījuma piemērs:
+```
+curl --location --request POST 'http://127.0.0.1:8000/detect' \
+--form 'file=@"/path/to/file"'
+```
+
+"detect" atbildes piemērs:
+```
+[
+    {
+        "score": 0.4729708135128021,
+        "x1": 0.2542073726654053,
+        "x2": 0.4044743061065674,
+        "y1": 0.1198440844542347,
+        "y2": 0.6643966674688272
+    },
+    {
+        "score": 0.32955077290534973,
+        "x1": 0.6712018013000489,
+        "x2": 0.8507447242736816,
+        "y1": 0.26368020835798234,
+        "y2": 0.727583143603988
+    }
+]
+```
+Saiņu skaita noteikšanas pieprasījums nostrādās arī gadījumos, kad bildē nav mērkoks.
 
 ## Dokumentācija
 Palaižot serveri ar jebkuru no aprakstītām metodēm, dokumentācija ir pieejama servera `/docs` lapā, piemērām:
