@@ -70,7 +70,7 @@ def format_measure_results(results, image_original_size, scale_factor):
             if detection_class == DetectionClass.RULER:
                 if detection_score > max_ruler_confidence:
                     max_ruler_confidence = detection_score
-                    geometry_master_geom = [x1, y1, x2, y2]
+                    geometry_master_geom = [(x1+x2)/2, y1, (x1+x2)/2, y2]
             if detection_class == DetectionClass.TIMBER:  # we have timber
                 if detection_score > max_timber_confidence:
                     max_timber_confidence = detection_score
