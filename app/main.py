@@ -70,12 +70,13 @@ def format_measure_results(results, image_original_size, scale_factor):
             if detection_class == DetectionClass.RULER:
                 if detection_score > max_ruler_confidence:
                     max_ruler_confidence = detection_score
-                    geometry_master_geom = [x1, y1, x2, y2]
+                    master_x = (x1+x2)/2
+                    geometry_master_geom = [master_x, y1, master_x, y2]
             if detection_class == DetectionClass.TIMBER:  # we have timber
                 if detection_score > max_timber_confidence:
                     max_timber_confidence = detection_score
-                    height_x = max(x1, x2) / 2  # bounding box width midpoint
-                    length_y = max(y1, y2) / 2  # bounding box height midpoint
+                    height_x = (x1 + x2) / 2  # bounding box width midpoint
+                    length_y = (y1 + y2) / 2  # bounding box height midpoint
                     geometry_length_geom = [x1, length_y, x2, length_y]  # length part has zero height, so y1 and y2 are the same
                     geometry_height_geom = [height_x, y1, height_x, y2]  # height part has zero width, so x1 and x2 are the same
 
