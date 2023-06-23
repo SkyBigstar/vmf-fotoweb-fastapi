@@ -1,16 +1,16 @@
-import torch
 import cv2
 import numpy as np
+
 
 from fastapi import FastAPI, Request, Form, File, UploadFile
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from enum import Enum
 from PIL import Image
+from app.detect import run
 
 app = FastAPI()
 
-model = torch.hub.load('ultralytics/yolov5', 'custom', path='assets/best.onnx')
 
 IMG_SIZE = 1280
 
@@ -60,8 +60,7 @@ def format_measure_results(results, image_original_size, scale_factor):
     geometry_length_geom = None
     geometry_height_geom = None
 
-    for result in results.xyxy:
-        for prediction in result:
+    for prediction in results:
             [x1, y1, x2, y2, detection_score, detection_class] = prediction.tolist()
             x1 = x1 / scale_factor / w
             x2 = x2 / scale_factor / w
@@ -97,8 +96,7 @@ def format_measure_results(results, image_original_size, scale_factor):
 def format_detect_results(results, image_original_size, scale_factor):
     [w, h] = image_original_size
     detections = []
-    for result in results.xyxy:
-        for prediction in result:
+    for prediction in results:
             [x1, y1, x2, y2, detection_score, detection_class] = prediction.tolist()
             if detection_class == DetectionClass.TIMBER:
                 x1 = x1 / scale_factor / w
@@ -120,7 +118,8 @@ def run_model_inference(img):
     image_original_size = image.size
     scale_factor = (IMG_SIZE / max(image.size))
     resized = image.resize((int(x * scale_factor) for x in image.size), Image.ANTIALIAS)
-    results = model(resized)
+    resized.save("app/datasets/default.jpg")
+    results = run()
     return results, image_original_size, scale_factor
 
 

@@ -7,7 +7,6 @@ ENV WORK_DIR /code
 WORKDIR $WORK_DIR
 
 COPY ./requirements.txt /code/requirements.txt
-RUN pip install --no-cache-dir --upgrade -r https://raw.githubusercontent.com/ultralytics/yolov5/master/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 
