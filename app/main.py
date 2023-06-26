@@ -82,6 +82,7 @@ def format_measure_results(results, image_original_size, scale_factor):
 
     if all([geometry_master_geom, geometry_length_geom, geometry_height_geom]):
         one_meter = abs(geometry_master_geom[1] - geometry_master_geom[3])
+        print(100 * abs(geometry_height_geom[1] - geometry_height_geom[3]) / one_meter)
         return Measurement(
             height=100 * abs(geometry_height_geom[1] - geometry_height_geom[3]) / one_meter,
             length=100 * abs(geometry_length_geom[0] - geometry_length_geom[2]) / one_meter * aspect_ratio,
