@@ -118,8 +118,8 @@ def run_model_inference(img):
     image_original_size = image.size
     scale_factor = (IMG_SIZE / max(image.size))
     resized = image.resize((int(x * scale_factor) for x in image.size), Image.ANTIALIAS)
-    resized.save("app/datasets/default.jpg")
-    results = run()
+    
+    results = run(np.array(resized))
     return results, image_original_size, scale_factor
 
 

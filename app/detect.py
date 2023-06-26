@@ -29,6 +29,7 @@ import argparse
 import os
 import platform
 import sys
+import numpy as np
 from pathlib import Path
 
 import torch
@@ -45,10 +46,10 @@ from utils.general import (LOGGER, Profile, check_file, check_img_size, check_im
                            increment_path, non_max_suppression, print_args, scale_boxes, strip_optimizer, xyxy2xywh)
 from utils.plots import Annotator, colors, save_one_box
 from utils.torch_utils import select_device, smart_inference_mode
-
+from utils.augmentations import letterbox
 
 @smart_inference_mode()
-def run(
+def run(resized,
         weights=FILE.parents[1]/'assets/best.onnx',  # model path or triton URL
         source=ROOT / 'datasets',  # file/dir/URL/glob/screen/0(webcam)
         data=ROOT / 'data/coco128.yaml',  # dataset.yaml path
@@ -96,6 +97,7 @@ def run(
     stride, names, pt = model.stride, model.names, model.pt
     imgsz = check_img_size(imgsz, s=stride)  # check image size
 
+
     # Dataloader
     bs = 1  # batch_size
     if webcam:
@@ -105,70 +107,66 @@ def run(
     elif screenshot:
         dataset = LoadScreenshots(source, img_size=imgsz, stride=stride, auto=pt)
     else:
-        dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt, vid_stride=vid_stride)
+        print("datset:")
     vid_path, vid_writer = [None] * bs, [None] * bs
 
     # Run inference
     model.warmup(imgsz=(1 if pt or model.triton else bs, 3, *imgsz))  # warmup
     seen, windows, dt = 0, [], (Profile(), Profile(), Profile())
-    for path, im, im0s, vid_cap, s in dataset:
-        with dt[0]:
-            im = torch.from_numpy(im).to(model.device)
-            im = im.half() if model.fp16 else im.float()  # uint8 to fp16/32
-            im /= 255  # 0 - 255 to 0.0 - 1.0
-            if len(im.shape) == 3:
-                im = im[None]  # expand for batch dim
+    
+    im0 = resized
 
-        # Inference
-        with dt[1]:
-           # visualize = increment_path(save_dir / Path(path).stem, mkdir=True) if visualize else False
-            pred = model(im, augment=augment, visualize=visualize)
+    t = letterbox(resized)[0]  # padded resize
+    t = t.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+    t = np.ascontiguousarray(t)
 
-        # NMS
-        with dt[2]:
-            pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
+    im = t
+    with dt[0]:
+        im = torch.from_numpy(im).to(model.device)
+        im = im.half() if model.fp16 else im.float()  # uint8 to fp16/32
+        im /= 255  # 0 - 255 to 0.0 - 1.0
+        if len(im.shape) == 3:
+            im = im[None]  # expand for batch dim
+    # Inference
+    with dt[1]:
+        # visualize = increment_path(save_dir / Path(path).stem, mkdir=True) if visualize else False
+        pred = model(im, augment=augment, visualize=visualize)
 
-        # Second-stage classifier (optional)
-        # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
+    # NMS
+    with dt[2]:
+        pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
 
-        # Process predictions
-        for i, det in enumerate(pred):  # per image
-            seen += 1
-            if webcam:  # batch_size >= 1
-                p, im0, frame = path[i], im0s[i].copy(), dataset.count
-                s += f'{i}: '
-            else:
-                p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
+    # Second-stage classifier (optional)
+    # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
 
-            p = Path(p)  # to Path
-            #save_path = str(save_dir / p.name)  # im.jpg
-            #txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
-            s += '%gx%g ' % im.shape[2:]  # print string
-            gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
-            imc = im0.copy() if save_crop else im0  # for save_crop
-            annotator = Annotator(im0, line_width=line_thickness, example=str(names))
-            if len(det):
-                # Rescale boxes from img_size to im0 size
-                det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
+    # Process predictions
+    for i, det in enumerate(pred):  # per image
+        seen += 1
+        
+        #save_path = str(save_dir / p.name)  # im.jpg
+        #txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
+        gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+        imc = im0.copy() if save_crop else im0  # for save_crop
+        annotator = Annotator(im0, line_width=line_thickness, example=str(names))
+        if len(det):
+            # Rescale boxes from img_size to im0 size
+            det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
 
-                # Print results
-                for c in det[:, 5].unique():
-                    n = (det[:, 5] == c).sum()  # detections per class
-                    s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
+            # Print results
+            for c in det[:, 5].unique():
+                n = (det[:, 5] == c).sum()  # detections per class
 
-               # print(det.numpy())
+            # print(det.numpy())
+            
+            # Write results
+            for *xyxy, conf, cls in reversed(det):
                 
-                # Write results
-                for *xyxy, conf, cls in reversed(det):
-                    
-                    if save_txt:  # Write to file
-                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                if save_txt:  # Write to file
+                    xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
 
                        
 
-
         # Print time (inference-only)
-        LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{dt[1].dt * 1E3:.1f}ms")
     return det.numpy()
 
 
